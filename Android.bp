@@ -46,11 +46,8 @@ java_test_host {
         "hamcrest",
         "guava",
         "junit",
-        "truth-prebuilt",
+        "truth",
     ],
     libs: ["robolectric-host-android_all_upstream"],
     test_suites: ["general-tests"],
 }
-
-
-
