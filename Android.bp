@@ -30,7 +30,6 @@ java_library_host {
         "robolectric-host-android_all",
     ],
     plugins: ["auto_service_plugin"],
-    java_resource_dirs: ["resources"],
 }
 
 //#############################################
