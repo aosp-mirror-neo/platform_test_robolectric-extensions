@@ -173,6 +173,7 @@ public class AndroidNativeRuntimeLoader extends DefaultNativeRuntimeLoader {
                   accessor.maybeCopyFonts(extractDirectory);
                 }
                 maybeCopyIcuData(extractDirectory);
+                maybeCopyArscFile(extractDirectory);
                 if (isAndroidVOrAbove()) {
                   // Load per-sdk Robolectric Native Runtime (RNR)
                   System.setProperty("core_native_classes", String.join(",", CORE_CLASS_NATIVES));
@@ -205,6 +206,20 @@ public class AndroidNativeRuntimeLoader extends DefaultNativeRuntimeLoader {
     Path icuDatPath = icuPath.resolve(icuDatFile);
     Resources.asByteSource(icuDatUrl).copyTo(Files.asByteSink(icuDatPath.toFile()));
     System.setProperty("icu.data.path", icuDatPath.toAbsolutePath().toString());
+  }
+
+  /** Attempts to load the ARSC file. This is only relevant for native graphics. */
+  private void maybeCopyArscFile(TempDirectory tempDirectory) throws IOException {
+    URL arscUrl;
+    try {
+      arscUrl = Resources.getResource("arsc/color_and_font_res.arsc");
+    } catch (IllegalArgumentException e) {
+      return;
+    }
+    Path arscPath = tempDirectory.create("arsc");
+    Path arscFilePath = arscPath.resolve("color_and_font_res.arsc");
+    Resources.asByteSource(arscUrl).copyTo(Files.asByteSink(arscFilePath.toFile()));
+    System.setProperty("arsc.file.path", arscFilePath.toAbsolutePath().toString());
   }
 
   private void invokeDeferredStaticInitializers() {
