@@ -211,13 +211,14 @@ public class AndroidNativeRuntimeLoader extends DefaultNativeRuntimeLoader {
   /** Attempts to load the ARSC file. This is only relevant for native graphics. */
   private void maybeCopyArscFile(TempDirectory tempDirectory) throws IOException {
     URL arscUrl;
+    final String arscFileName = "font_resources.arsc";
     try {
-      arscUrl = Resources.getResource("arsc/color_and_font_res.arsc");
+      arscUrl = Resources.getResource(arscFileName);
     } catch (IllegalArgumentException e) {
       return;
     }
     Path arscPath = tempDirectory.create("arsc");
-    Path arscFilePath = arscPath.resolve("color_and_font_res.arsc");
+    Path arscFilePath = arscPath.resolve(arscFileName);
     Resources.asByteSource(arscUrl).copyTo(Files.asByteSink(arscFilePath.toFile()));
     System.setProperty("arsc.file.path", arscFilePath.toAbsolutePath().toString());
   }
