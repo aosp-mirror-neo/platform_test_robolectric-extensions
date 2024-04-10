@@ -18,6 +18,7 @@ package org.robolectric.android.plugins;
 
 import com.google.auto.service.AutoService;
 import java.util.Properties;
+import javax.annotation.Priority;
 import org.robolectric.annotation.SQLiteMode;
 import org.robolectric.pluginapi.config.Configurer;
 import org.robolectric.plugins.SQLiteModeConfigurer;
@@ -32,6 +33,7 @@ import org.robolectric.util.inject.Supercedes;
  */
 @AutoService(Configurer.class)
 @Supercedes(SQLiteModeConfigurer.class)
+@Priority(Integer.MAX_VALUE)
 public class AndroidSQLiteModeConfigurer
     extends SingleValueConfigurer<SQLiteMode, SQLiteMode.Mode> {
 
@@ -44,5 +46,10 @@ public class AndroidSQLiteModeConfigurer
         SQLiteMode.Mode.LEGACY,
         propertyFileLoader,
         systemProperties);
+  }
+  
+  @Override
+  protected String propertyName() {
+    return "sqliteMode";
   }
 }
