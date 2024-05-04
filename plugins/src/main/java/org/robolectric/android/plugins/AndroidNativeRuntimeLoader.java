@@ -143,6 +143,7 @@ public class AndroidNativeRuntimeLoader extends DefaultNativeRuntimeLoader {
             "android.graphics.text.LineBreaker",
             "android.graphics.fonts.FontFamily$Builder",
             "android.graphics.text.MeasuredText$Builder",
+            "android.media.ImageReader",
           });
 
   @Override
