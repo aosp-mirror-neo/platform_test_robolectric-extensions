@@ -136,12 +136,7 @@ public class AndroidNativeRuntimeLoader extends DefaultNativeRuntimeLoader {
             "android.graphics.FontFamily",
             "android.graphics.Matrix",
             "android.graphics.Path",
-            "android.graphics.fonts.Font",
-            "android.graphics.fonts.FontFamily$Builder",
             "android.graphics.Typeface",
-            "android.graphics.text.PositionedGlyphs",
-            "android.graphics.text.LineBreaker",
-            "android.graphics.fonts.FontFamily$Builder",
             "android.graphics.text.MeasuredText$Builder",
             "android.media.ImageReader",
           });
