@@ -133,9 +133,7 @@ public class AndroidNativeRuntimeLoader extends DefaultNativeRuntimeLoader {
   private static final ImmutableList<String> DEFERRED_STATIC_INITIALIZERS =
       ImmutableList.copyOf(
           new String[] {
-            "android.graphics.ColorSpace",
             "android.graphics.FontFamily",
-            "android.graphics.Matrix",
             "android.graphics.Path",
             "android.graphics.Typeface",
             "android.graphics.text.MeasuredText$Builder",
