@@ -83,6 +83,7 @@ public class AndroidNativeRuntimeLoader extends DefaultNativeRuntimeLoader {
             "android.graphics.Camera",
             "android.graphics.Canvas",
             "android.graphics.CanvasProperty",
+            "android.graphics.Color",
             "android.graphics.ColorFilter",
             "android.graphics.ColorSpace",
             "android.graphics.CreateJavaOutputStreamAdaptor",
