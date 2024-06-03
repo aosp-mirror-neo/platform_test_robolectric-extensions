@@ -83,6 +83,7 @@ public class AndroidNativeRuntimeLoader extends DefaultNativeRuntimeLoader {
             "android.graphics.Camera",
             "android.graphics.Canvas",
             "android.graphics.CanvasProperty",
+            "android.graphics.Color",
             "android.graphics.ColorFilter",
             "android.graphics.ColorSpace",
             "android.graphics.CreateJavaOutputStreamAdaptor",
@@ -132,17 +133,11 @@ public class AndroidNativeRuntimeLoader extends DefaultNativeRuntimeLoader {
   private static final ImmutableList<String> DEFERRED_STATIC_INITIALIZERS =
       ImmutableList.copyOf(
           new String[] {
-            "android.graphics.ColorSpace",
             "android.graphics.FontFamily",
-            "android.graphics.Matrix",
             "android.graphics.Path",
-            "android.graphics.fonts.Font",
-            "android.graphics.fonts.FontFamily$Builder",
             "android.graphics.Typeface",
-            "android.graphics.text.PositionedGlyphs",
-            "android.graphics.text.LineBreaker",
-            "android.graphics.fonts.FontFamily$Builder",
             "android.graphics.text.MeasuredText$Builder",
+            "android.media.ImageReader",
           });
 
   @Override
@@ -211,13 +206,14 @@ public class AndroidNativeRuntimeLoader extends DefaultNativeRuntimeLoader {
   /** Attempts to load the ARSC file. This is only relevant for native graphics. */
   private void maybeCopyArscFile(TempDirectory tempDirectory) throws IOException {
     URL arscUrl;
+    final String arscFileName = "font_resources.arsc";
     try {
-      arscUrl = Resources.getResource("arsc/color_and_font_res.arsc");
+      arscUrl = Resources.getResource(arscFileName);
     } catch (IllegalArgumentException e) {
       return;
     }
     Path arscPath = tempDirectory.create("arsc");
-    Path arscFilePath = arscPath.resolve("color_and_font_res.arsc");
+    Path arscFilePath = arscPath.resolve(arscFileName);
     Resources.asByteSource(arscUrl).copyTo(Files.asByteSink(arscFilePath.toFile()));
     System.setProperty("arsc.file.path", arscFilePath.toAbsolutePath().toString());
   }
