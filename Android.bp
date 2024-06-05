@@ -25,9 +25,12 @@ java_library_host {
         "//external/robolectric",
     ],
     libs: [
+        "Robolectric_nativeruntime_upstream",
         "Robolectric_robolectric_upstream",
+        "Robolectric_sandbox_upstream",
         "Robolectric_shadows_versioning_upstream",
-        "robolectric-host-android_all_upstream",
+        "Robolectric_utils_reflector_upstream",
+        "robolectric-host-android_all",
     ],
     plugins: ["auto_service_plugin"],
 }
@@ -46,11 +49,8 @@ java_test_host {
         "hamcrest",
         "guava",
         "junit",
-        "truth-prebuilt",
+        "truth",
     ],
-    libs: ["robolectric-host-android_all_upstream"],
+    libs: ["robolectric-host-android_all"],
     test_suites: ["general-tests"],
 }
-
-
-
