@@ -288,8 +288,9 @@ public class AndroidNativeRuntimeLoader extends DefaultNativeRuntimeLoader {
   }
 
   private boolean isAndroidVOrAbove() {
-    return Objects.equals(AndroidVersions.CURRENT.getShortCode(), V.SHORT_CODE) &&
-            AndroidVersions.CURRENT.getSdkInt() >= U.SDK_INT;
+    return (Objects.equals(AndroidVersions.CURRENT.getShortCode(), V.SHORT_CODE) &&
+            AndroidVersions.CURRENT.getSdkInt() >= U.SDK_INT) ||
+        AndroidVersions.CURRENT.getSdkInt() >= V.SDK_INT;
   }
 
   @ForType(DefaultNativeRuntimeLoader.class)
