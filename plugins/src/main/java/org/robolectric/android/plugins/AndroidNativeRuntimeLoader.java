@@ -256,7 +256,7 @@ public class AndroidNativeRuntimeLoader extends DefaultNativeRuntimeLoader {
     System.setProperty("arsc.file.path", arscFilePath.toAbsolutePath().toString());
   }
 
-  private void invokeDeferredStaticInitializers() {
+  protected void invokeDeferredStaticInitializers() {
     for (String className : DEFERRED_STATIC_INITIALIZERS) {
       ReflectionHelpers.callStaticMethod(
               Shadow.class.getClassLoader(), className, ShadowConstants.STATIC_INITIALIZER_METHOD_NAME);
