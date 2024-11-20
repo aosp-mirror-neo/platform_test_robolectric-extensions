@@ -14,7 +14,11 @@ import org.robolectric.util.inject.Supercedes;
 public class AndroidConfigConfigurer extends ConfigConfigurer {
 
   static {
+    // Enables utils/src/main/java/org/robolectric/util/Logger.java
     System.setProperty("robolectric.logging.enabled", "true");
+    // Set to enable logging to stdout in
+    // shadows/framework/src/main/java/org/robolectric/shadows/ShadowLog.java
+    System.setProperty("robolectric.logging", "stdout");
     Logger.info("Logging turned on by AndroidConfigConfigurer.class");
   }
 
