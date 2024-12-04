@@ -7,10 +7,10 @@ import org.robolectric.pluginapi.config.GlobalConfigProvider;
 import org.robolectric.plugins.ConfigConfigurer;
 import org.robolectric.plugins.PackagePropertiesLoader;
 import org.robolectric.util.Logger;
-import org.robolectric.util.inject.Supercedes;
+import org.robolectric.util.inject.Supersedes;
 
 @AutoService(Configurer.class)
-@Supercedes(ConfigConfigurer.class)
+@Supersedes(ConfigConfigurer.class)
 public class AndroidConfigConfigurer extends ConfigConfigurer {
 
   static {
