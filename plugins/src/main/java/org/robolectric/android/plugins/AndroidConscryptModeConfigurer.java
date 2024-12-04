@@ -27,7 +27,7 @@ import org.robolectric.annotation.ConscryptMode.Mode;
 import org.robolectric.pluginapi.config.Configurer;
 import org.robolectric.plugins.config.SingleValueConfigurer;
 import org.robolectric.util.OsUtil;
-import org.robolectric.util.inject.Supercedes;
+import org.robolectric.util.inject.Supersedes;
 
 /** 
  * Provides configuration to Robolectric for its @{@link ConscryptMode} annotation. 
@@ -35,7 +35,7 @@ import org.robolectric.util.inject.Supercedes;
  * until we can build the .so in branch.
  */
 @AutoService(Configurer.class)
-@Supercedes(ConscryptModeConfigurer.class)
+@Supersedes(ConscryptModeConfigurer.class)
 @Priority(Integer.MAX_VALUE)
 public class AndroidConscryptModeConfigurer extends SingleValueConfigurer<ConscryptMode, ConscryptMode.Mode> {
 
