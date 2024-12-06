@@ -19,9 +19,19 @@ import java.util.stream.Collectors;
 
 import javax.annotation.Priority;
 
+import org.robolectric.util.Logger;
+
 @AutoService(SdkProvider.class)
 @Priority(2)
 public class AndroidLocalSdkProvider extends DefaultSdkProvider {
+
+    static {
+      System.setProperty("robolectric.offline", "true");
+      Logger.info("Offline mode set by AndroidLocalSdkProvider.class");
+      System.setProperty("robolectric.usePreinstrumentedJars", "false");
+      Logger.info("Disable preinstrumented jars in AndroidLocalSdkProvider.class");
+    }
+
 
     public AndroidLocalSdkProvider(DependencyResolver dependencyResolver) {
         super(dependencyResolver);
