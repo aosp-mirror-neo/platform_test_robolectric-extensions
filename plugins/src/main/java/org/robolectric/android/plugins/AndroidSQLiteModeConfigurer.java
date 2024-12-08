@@ -24,7 +24,7 @@ import org.robolectric.pluginapi.config.Configurer;
 import org.robolectric.plugins.SQLiteModeConfigurer;
 import org.robolectric.plugins.PackagePropertiesLoader;
 import org.robolectric.plugins.config.SingleValueConfigurer;
-import org.robolectric.util.inject.Supercedes;
+import org.robolectric.util.inject.Supersedes;
 
 /**
  * A {@link org.robolectric.pluginapi.config.Configurer} plugin for sqlite mode for Android. This
@@ -32,7 +32,7 @@ import org.robolectric.util.inject.Supercedes;
  * for Robolectric in AOSP.
  */
 @AutoService(Configurer.class)
-@Supercedes(SQLiteModeConfigurer.class)
+@Supersedes(SQLiteModeConfigurer.class)
 @Priority(Integer.MAX_VALUE)
 public class AndroidSQLiteModeConfigurer
     extends SingleValueConfigurer<SQLiteMode, SQLiteMode.Mode> {
