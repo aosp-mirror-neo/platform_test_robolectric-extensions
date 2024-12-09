@@ -38,7 +38,7 @@ import org.robolectric.shadow.api.Shadow;
 import org.robolectric.util.PerfStatsCollector;
 import org.robolectric.util.ReflectionHelpers;
 import org.robolectric.util.TempDirectory;
-import org.robolectric.util.inject.Supercedes;
+import org.robolectric.util.inject.Supersedes;
 import org.robolectric.util.reflector.Accessor;
 import org.robolectric.util.reflector.ForType;
 import org.robolectric.versioning.AndroidVersions;
@@ -57,7 +57,7 @@ import javax.annotation.Priority;
 
 /** Loads the Robolectric native runtime. */
 @AutoService(NativeRuntimeLoader.class)
-@Supercedes(DefaultNativeRuntimeLoader.class)
+@Supersedes(DefaultNativeRuntimeLoader.class)
 @Priority(Integer.MIN_VALUE)
 public class AndroidNativeRuntimeLoader extends DefaultNativeRuntimeLoader {
   private static final String METHOD_BINDING_FORMAT = "$$robo$$${method}$nativeBinding";
