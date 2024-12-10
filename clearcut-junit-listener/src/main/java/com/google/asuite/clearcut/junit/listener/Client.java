@@ -40,13 +40,12 @@ import java.net.URL;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.OpenOption;
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -55,6 +54,8 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
+import javax.annotation.Nonnull;
 
 /** Client that allows reporting usage metrics to clearcut. */
 public class Client {
@@ -70,8 +71,7 @@ public class Client {
     private static final long SCHEDULER_INITIAL_DELAY_MILLISECONDS = 1000;
     private static final long SCHEDULER_PERDIOC_MILLISECONDS = 250;
 
-    private static final String GOOGLE_EMAIL = "@google.com";
-    private static final String GOOGLE_HOSTNAME = ".google.com";
+    private static final List<String> GOOGLE_HOSTNAMES = Arrays.asList(".google.com", "c.googlers.com");
 
     private File mCachedUuidFile = new File(System.getProperty("user.home"), ".clearcut_listener");
     private String mRunId;
@@ -80,7 +80,9 @@ public class Client {
     private final int mLogSource;
     private final String mUrl;
     private final UserType mUserType;
+    private final String mToolName;
     private final String mSubToolName;
+    private final String mUser;
 
     // Consider synchronized list
     private final List<LogRequest> mExternalEventQueue;
@@ -89,30 +91,31 @@ public class Client {
     // Whether the clearcut client should be a noop
     private boolean mDisabled = false;
 
-    public Client(String subToolName) {
-        this(null, subToolName);
+    public Client(@Nonnull String toolName, String subToolName) {
+        this(null, toolName, subToolName);
         Runtime.getRuntime().addShutdownHook(new Thread(Client.this::stop));
     }
 
     /**
      * Create Client with customized posting URL and forcing whether it's internal or external user.
      */
-    protected Client(String url, String subToolName) {
+    protected Client(String url, @Nonnull String toolName, String subToolName) {
         mDisabled = isClearcutDisabled();
 
         // We still have to set the 'final' variable so go through the assignments before returning
         if (!mDisabled && isGoogleUser()) {
             mLogSource = INTERNAL_LOG_SOURCE;
             mUserType = UserType.GOOGLE;
+            mUser = EnvironmentInformation.getGoogleUser()
+                    .orElse(EnvironmentInformation.getUser()
+                            .orElseGet(this::getGroupingKey));
         } else {
             mLogSource = EXTERNAL_LOG_SOURCE;
             mUserType = UserType.EXTERNAL;
+            mUser = getGroupingKey();
         }
-        if (url == null) {
-            mUrl = CLEARCUT_PROD_URL;
-        } else {
-            mUrl = url;
-        }
+        mUrl = Objects.requireNonNullElse(url, CLEARCUT_PROD_URL);
+        mToolName = toolName;
         mRunId = UUID.randomUUID().toString();
         mExternalEventQueue = new ArrayList<>();
         if (Strings.isNullOrEmpty(subToolName) && System.getenv(CLEARCUT_SUB_TOOL_NAME) != null) {
@@ -134,7 +137,7 @@ public class Client {
                         1,
                         new ThreadFactory() {
                             @Override
-                            public Thread newThread(Runnable r) {
+                            public Thread newThread(@Nonnull Runnable r) {
                                 Thread t = Executors.defaultThreadFactory().newThread(r);
                                 t.setDaemon(true);
                                 t.setName("clearcut-client-thread");
@@ -171,7 +174,7 @@ public class Client {
         logEvent.setEventTimeMs(eventTimeMs);
         logEvent.setSourceExtension(
                 ClearcutEventHelper.createStartEvent(
-                        getGroupingKey(), mRunId, mUserType, mSubToolName));
+                        mUser, mRunId, mUserType, mToolName, mSubToolName));
         request.addLogEvent(logEvent);
         queueEvent(request.build());
         return true;
@@ -188,7 +191,7 @@ public class Client {
         logEvent.setEventTimeMs(System.currentTimeMillis());
         logEvent.setSourceExtension(
                 ClearcutEventHelper.createFinishedEvent(
-                        getGroupingKey(), mRunId, mUserType, mSubToolName, duration));
+                        mUser, mRunId, mUserType, mToolName, mSubToolName, duration));
         request.addLogEvent(logEvent);
         queueEvent(request.build());
     }
@@ -203,7 +206,7 @@ public class Client {
         logEvent.setEventTimeMs(System.currentTimeMillis());
         logEvent.setSourceExtension(
                 ClearcutEventHelper.createRunStartEvent(
-                        getGroupingKey(), mRunId, mUserType, mSubToolName));
+                        mUser, mRunId, mUserType, mToolName, mSubToolName));
         request.addLogEvent(logEvent);
         queueEvent(request.build());
     }
@@ -219,7 +222,7 @@ public class Client {
         logEvent.setEventTimeMs(System.currentTimeMillis());
         logEvent.setSourceExtension(
                 ClearcutEventHelper.creatRunTestFinished(
-                        getGroupingKey(), mRunId, mUserType, mSubToolName, duration));
+                        mUser, mRunId, mUserType, mSubToolName, mToolName, duration));
         request.addLogEvent(logEvent);
         queueEvent(request.build());
     }
@@ -284,20 +287,13 @@ public class Client {
     boolean isGoogleUser() {
         try {
             String hostname = InetAddress.getLocalHost().getHostName();
-            if (hostname.contains(GOOGLE_HOSTNAME)) {
+            if (GOOGLE_HOSTNAMES.stream().anyMatch(hostname::endsWith)) {
                 return true;
             }
         } catch (UnknownHostException e) {
             // Ignore
         }
-        Optional<String> result = executCommand("git", "config", "--get", "user.email");
-        if (result.isPresent()) {
-            String stdout = result.get();
-            if (stdout != null && stdout.trim().endsWith(GOOGLE_EMAIL)) {
-                return true;
-            }
-        }
-        return false;
+        return EnvironmentInformation.getGoogleUser().isPresent();
     }
 
     private LogRequest.Builder createBaseLogRequest() {
@@ -355,13 +351,13 @@ public class Client {
             logError(e);
         } catch (NoSuchMethodError e) {
             if (e.getMessage().contains("com.google.protobuf.Descriptors$Descriptor com.google.protobuf.Any.getDescriptor()")) {
-                StringBuilder message = new StringBuilder();
-                message.append("In order for the ClearcutListener to operate it must use protobuf-full to be able to convert messages to json.\n");
-                message.append("Android typically uses protobuf-lite.");
-                message.append("If you're seeing this in a gradle build, adding `testImplementation(project(\":RobolectricLib\"))` to the start of ");
-                message.append("your dependency section should be sufficient, if not (due to how gradle calculates deps), add this dep: ");
-                message.append("`testImplementation(libs.protobuf.java)` to the top of your dependencies");
-                throw new RuntimeException(message.toString(), e);
+                String message =
+                        "In order for the ClearcutListener to operate it must use protobuf-full to be able to convert messages to json.\n"
+                                + "Android typically uses protobuf-lite."
+                                + "If you're seeing this in a gradle build, adding `testImplementation(project(\":RobolectricLib\"))` to the start of "
+                                + "your dependency section should be sufficient, if not (due to how gradle calculates deps), add this dep: "
+                                + "`testImplementation(libs.protobuf.java)` to the top of your dependencies";
+                throw new RuntimeException(message, e);
             } else {
                 logError(e);
                 throw e;
@@ -405,30 +401,6 @@ public class Client {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
             return reader.lines().collect(Collectors.joining(System.lineSeparator()));
         }
-    }
-
-    protected static Optional<String> executCommand(String... command) {
-        try {
-            ProcessBuilder pb = new ProcessBuilder(command);
-            Process process = pb.start();
-            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-            String line;
-            StringBuilder output = new StringBuilder();
-            while ((line = reader.readLine()) != null) {
-                output.append(line).append("\n");
-            }
-            if (process.waitFor(60, TimeUnit.SECONDS)) {
-                int exitCode = process.exitValue();
-                if (exitCode == 0) {
-                    return Optional.of(output.toString());
-                }
-            }
-        } catch (IOException | InterruptedException e) {
-            System.out.println(Client.class.getName() + " could not execute command:" +
-                    Arrays.stream(command).collect(Collectors.joining(" ")));
-            e.printStackTrace();
-        }
-        return Optional.empty();
     }
 
     private static HttpURLConnection createConnection(URL url, String method, String contentType)
