@@ -29,16 +29,20 @@ public class ClearcutJunitListener extends RunListener {
     private long startTime = System.nanoTime();
 
     public ClearcutJunitListener() {
-        System.out.println("In clearcut listener");
-        String context = "junit";
+        String tool = "junit";
+        String subtool = "junit";
         if (EnvironmentInformation.isSysUIRoboTest()) { //sysui
-            context = "junit_sysui";
+            subtool += "_sysui";
         } else if (EnvironmentInformation.isGradleTest()) { //intellij
-            context = "junit_gradle";
-        } else if (EnvironmentInformation.isRoboTest()) { //robolectric
-            context += "_robolectric";
+            subtool += "_gradle";
         }
-        client = new Client(context);
+        if (EnvironmentInformation.isDebugging()) { //robolectric
+            subtool += "_debug";
+        }
+        if (EnvironmentInformation.isRoboTest()) { //robolectric
+            subtool += "_robo";
+        }
+        client = new Client(tool, subtool);
     }
 
 
