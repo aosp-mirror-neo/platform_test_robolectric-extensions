@@ -222,7 +222,7 @@ public class Client {
         logEvent.setEventTimeMs(System.currentTimeMillis());
         logEvent.setSourceExtension(
                 ClearcutEventHelper.creatRunTestFinished(
-                        mUser, mRunId, mUserType, mSubToolName, mToolName, duration));
+                        mUser, mRunId, mUserType, mToolName, mSubToolName, duration));
         request.addLogEvent(logEvent);
         queueEvent(request.build());
     }
