@@ -38,16 +38,18 @@ import org.robolectric.shadow.api.Shadow;
 import org.robolectric.util.PerfStatsCollector;
 import org.robolectric.util.ReflectionHelpers;
 import org.robolectric.util.TempDirectory;
-import org.robolectric.util.inject.Supercedes;
+import org.robolectric.util.inject.Supersedes;
 import org.robolectric.util.reflector.Accessor;
 import org.robolectric.util.reflector.ForType;
 import org.robolectric.versioning.AndroidVersions;
 import org.robolectric.versioning.AndroidVersions.U;
 import org.robolectric.versioning.AndroidVersions.V;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Locale;
 import java.util.Objects;
 
@@ -55,7 +57,7 @@ import javax.annotation.Priority;
 
 /** Loads the Robolectric native runtime. */
 @AutoService(NativeRuntimeLoader.class)
-@Supercedes(DefaultNativeRuntimeLoader.class)
+@Supersedes(DefaultNativeRuntimeLoader.class)
 @Priority(Integer.MIN_VALUE)
 public class AndroidNativeRuntimeLoader extends DefaultNativeRuntimeLoader {
   private static final String METHOD_BINDING_FORMAT = "$$robo$$${method}$nativeBinding";
@@ -175,15 +177,51 @@ public class AndroidNativeRuntimeLoader extends DefaultNativeRuntimeLoader {
                   System.setProperty(
                       "graphics_native_classes", String.join(",", GRAPHICS_CLASS_NATIVES));
                   System.setProperty("method_binding_format", METHOD_BINDING_FORMAT);
-                }
-                loadLibrary(extractDirectory);
-                if (isAndroidVOrAbove()) {
+                  if (Boolean.parseBoolean(System.getProperty(
+                          "android.robolectric.loadLibraryFromPath", "false"))) {
+                    loadLibraryFromPath();
+                  } else {
+                    loadLibrary(extractDirectory);
+                  }
                   invokeDeferredStaticInitializers();
                   Typeface.loadPreinstalledSystemFontMap();
+                } else {
+                  loadLibrary(extractDirectory);
                 }
+
               });
     } catch (IOException e) {
       throw new AssertionError("Unable to load Robolectric native runtime library", e);
+    }
+  }
+
+  private void loadLibraryFromPath() {
+    // find the libandroid_runtime.so file in java.library.path, and create a copy of it so
+    // it can be loaded across different sandboxes
+    var path = System.getProperty("java.library.path");
+    var filename = "libandroid_runtime.so";
+
+
+    try {
+      if (path == null) {
+          throw new UnsatisfiedLinkError("Cannot load library " + filename + "."
+                + " Property java.library.path not set!");
+      }
+      for (var dir : path.split(":")) {
+          var libraryPath = Paths.get(dir, filename);
+          if (java.nio.file.Files.exists(libraryPath)) {
+              // create a copy of the file
+              File tmpLibraryFile = java.nio.file.Files.createTempFile("", "android_runtime").toFile();
+              tmpLibraryFile.deleteOnExit();
+              Files.copy(libraryPath.toFile().getAbsoluteFile(), tmpLibraryFile);
+              System.load(tmpLibraryFile.getAbsolutePath());
+              return;
+         }
+      }
+      throw new UnsatisfiedLinkError("Library " + filename + " not found in "
+              + "java.library.path: " + path);
+    } catch (IOException e) {
+      throw new AssertionError("Failed to copy " + filename, e);
     }
   }
 
@@ -218,7 +256,7 @@ public class AndroidNativeRuntimeLoader extends DefaultNativeRuntimeLoader {
     System.setProperty("arsc.file.path", arscFilePath.toAbsolutePath().toString());
   }
 
-  private void invokeDeferredStaticInitializers() {
+  protected void invokeDeferredStaticInitializers() {
     for (String className : DEFERRED_STATIC_INITIALIZERS) {
       ReflectionHelpers.callStaticMethod(
               Shadow.class.getClassLoader(), className, ShadowConstants.STATIC_INITIALIZER_METHOD_NAME);
@@ -235,9 +273,7 @@ public class AndroidNativeRuntimeLoader extends DefaultNativeRuntimeLoader {
 
   /** For V and above, insert "V" folder for V and above lib path. */
   private String nativeLibraryPath() {
-    DefaultNativeRuntimeLoaderReflector accessor =
-            reflector(DefaultNativeRuntimeLoaderReflector.class, this);
-    String defaultPath = accessor.nativeLibraryPath();
+    String defaultPath = defaultNativeLibraryPath();
     if (isAndroidVOrAbove()) {
       int index = defaultPath.lastIndexOf(System.mapLibraryName("robolectric-nativeruntime"));
       if (index < 0) {
@@ -249,9 +285,22 @@ public class AndroidNativeRuntimeLoader extends DefaultNativeRuntimeLoader {
     return defaultPath;
   }
 
+  private String defaultNativeLibraryPath() {
+    DefaultNativeRuntimeLoaderReflector accessor =
+            reflector(DefaultNativeRuntimeLoaderReflector.class, this);
+    String os = accessor.osName();
+    String arch = accessor.arch();
+    return String.format(
+            "native/%s/%s/%s",
+            os,
+            arch,
+            System.mapLibraryName("robolectric-nativeruntime"));
+  }
+
   private boolean isAndroidVOrAbove() {
-    return Objects.equals(AndroidVersions.CURRENT.getShortCode(), V.SHORT_CODE) &&
-            AndroidVersions.CURRENT.getSdkInt() >= U.SDK_INT;
+    return (Objects.equals(AndroidVersions.CURRENT.getShortCode(), V.SHORT_CODE) &&
+            AndroidVersions.CURRENT.getSdkInt() >= U.SDK_INT) ||
+        AndroidVersions.CURRENT.getSdkInt() >= V.SDK_INT;
   }
 
   @ForType(DefaultNativeRuntimeLoader.class)
@@ -261,6 +310,7 @@ public class AndroidNativeRuntimeLoader extends DefaultNativeRuntimeLoader {
 
     boolean isSupported();
     void maybeCopyFonts(TempDirectory tempDirectory);
-    String nativeLibraryPath();
+    String osName();
+    String arch();
   }
 }
