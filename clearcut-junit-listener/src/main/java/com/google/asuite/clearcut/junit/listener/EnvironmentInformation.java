@@ -19,17 +19,11 @@ package com.google.asuite.clearcut.junit.listener;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 public class EnvironmentInformation {
 
-    private static final List<String> GOOGLE_HOSTNAMES = Arrays.asList(".google.com", "c.googlers.com");
     private static String ROBOLECTRIC_SYSUI_EXTENSION_CLASS = "com.google.android.sysui.ToTSdkProvider";
     private static String GRADLE = "worker.org.gradle.process.internal.worker.GradleWorkerMain";
     private static String ROBOLECTRIC_CLASS = "org.robolectric.Robolectric";
@@ -62,22 +56,25 @@ public class EnvironmentInformation {
                 getInputArguments().toString().contains("-agentlib:jdwp");
     }
 
-
-    public static Optional<String> getGitEmail() {
-        return executeCommand("git", "config", "--get", "user.email");
+    /**
+     * @return Optional of git username, if email and ends in @google.com
+     */
+    public static Optional<String> getGoogleUser() {
+        Optional<String> result = executeCommand("git", "config", "--get", "user.email");
+        if (result.isPresent()) {
+            String stdout = result.get();
+            if (stdout.trim().endsWith(GOOGLE_EMAIL)) {
+                return Optional.of(stdout.trim().replace(GOOGLE_EMAIL, ""));
+            }
+        }
+        return Optional.empty();
     }
 
     /**
      * @return Optional of git username, if email and ends in @google.com
      */
-    public static Optional<String> getGitUserIfGoogleEmail(Optional<String> email) {
-        if (email.isPresent()) {
-            String emailStr = email.get();
-            if (emailStr.trim().endsWith(GOOGLE_EMAIL)) {
-                return Optional.of(emailStr.trim().replace(GOOGLE_EMAIL, ""));
-            }
-        }
-        return Optional.empty();
+    public static Optional<String> getUser() {
+        return executeCommand("whoami");
     }
 
     static Optional<String> executeCommand(String... command) {
@@ -104,15 +101,5 @@ public class EnvironmentInformation {
         return Optional.empty();
     }
 
-    public static boolean isGoogleDomain() {
-        try {
-            String hostname = InetAddress.getLocalHost().getHostName();
-            if (GOOGLE_HOSTNAMES.stream().anyMatch(hostname::endsWith)) {
-                return true;
-            }
-        } catch (UnknownHostException e) {
-            // Ignore
-        }
-        return false;
-    }
+
 }
