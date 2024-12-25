@@ -25,13 +25,10 @@ import org.junit.runner.notification.RunListener;
 @AutoService(RunListener.class)
 public class ClearcutJunitListener extends RunListener {
 
-    /**
-     * Static since the listener gets rebuild once per class.
-     */
-    private static Client client;
+    private Client client;
     private long startTime = System.nanoTime();
 
-    static {
+    public ClearcutJunitListener() {
         String tool = "junit";
         String subtool = "junit";
         if (EnvironmentInformation.isSysUIRoboTest()) { //sysui
@@ -46,16 +43,8 @@ public class ClearcutJunitListener extends RunListener {
             subtool += "_robo";
         }
         client = new Client(tool, subtool);
-        if (!(EnvironmentInformation.isGoogleDomain() ||
-                EnvironmentInformation
-                        .getGitUserIfGoogleEmail(EnvironmentInformation.getGitEmail())
-                        .isPresent())) {
-            client.disable();
-        }
     }
 
-    public ClearcutJunitListener() {
-    }
 
     @Override
     public void testRunStarted(Description description) throws Exception {
