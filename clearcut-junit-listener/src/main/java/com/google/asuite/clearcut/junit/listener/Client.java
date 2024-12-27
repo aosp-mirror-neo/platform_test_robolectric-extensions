@@ -46,6 +46,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -84,6 +85,8 @@ public class Client {
     private final String mSubToolName;
     private final String mUser;
 
+    private final boolean mIsGoogle;
+
     // Consider synchronized list
     private final List<LogRequest> mExternalEventQueue;
     // The pool executor to actually post the metrics
@@ -101,18 +104,21 @@ public class Client {
      */
     protected Client(String url, @Nonnull String toolName, String subToolName) {
         mDisabled = isClearcutDisabled();
+        Optional<String> email = EnvironmentInformation.getGitEmail();
+        Optional<String> googleUser = EnvironmentInformation.getGitUserIfGoogleEmail(email);
+        mIsGoogle = EnvironmentInformation.isGoogleDomain() ||
+                googleUser.isPresent();
+        Optional<String> username = EnvironmentInformation.executeCommand("whoami");
 
         // We still have to set the 'final' variable so go through the assignments before returning
         if (!mDisabled && isGoogleUser()) {
             mLogSource = INTERNAL_LOG_SOURCE;
             mUserType = UserType.GOOGLE;
-            mUser = EnvironmentInformation.getGoogleUser()
-                    .orElse(EnvironmentInformation.getUser()
-                            .orElseGet(this::getGroupingKey));
+            mUser = googleUser.orElse(username.orElse(""));
         } else {
             mLogSource = EXTERNAL_LOG_SOURCE;
             mUserType = UserType.EXTERNAL;
-            mUser = getGroupingKey();
+            mUser = UUID5.uuidOf(UUID5.NAMESPACE_DNS, email.orElse(username.orElse(""))).toString();
         }
         mUrl = Objects.requireNonNullElse(url, CLEARCUT_PROD_URL);
         mToolName = toolName;
@@ -156,6 +162,14 @@ public class Client {
                 SCHEDULER_INITIAL_DELAY_MILLISECONDS,
                 SCHEDULER_PERDIOC_MILLISECONDS,
                 TimeUnit.MILLISECONDS);
+    }
+
+    protected void disable(){
+        mDisabled = true;
+    }
+
+    boolean isGoogleUser() {
+        return mIsGoogle;
     }
 
     /** Send the first event to notify that Tradefed was started. */
@@ -281,19 +295,6 @@ public class Client {
     /** Returns True if clearcut is disabled, False otherwise. */
     public boolean isClearcutDisabled() {
         return "1".equals(System.getenv(DISABLE_CLEARCUT_KEY));
-    }
-
-    /** Returns True if the user is a Googler, False otherwise. */
-    boolean isGoogleUser() {
-        try {
-            String hostname = InetAddress.getLocalHost().getHostName();
-            if (GOOGLE_HOSTNAMES.stream().anyMatch(hostname::endsWith)) {
-                return true;
-            }
-        } catch (UnknownHostException e) {
-            // Ignore
-        }
-        return EnvironmentInformation.getGoogleUser().isPresent();
     }
 
     private LogRequest.Builder createBaseLogRequest() {
