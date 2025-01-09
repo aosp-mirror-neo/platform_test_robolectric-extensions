@@ -34,24 +34,35 @@ public class ClearcutJunitListener extends RunListener {
     static {
         String tool = "junit";
         String subtool = "junit";
-        if (EnvironmentInformation.isSysUIRoboTest()) { //sysui
-            subtool += "_sysui";
-        } else if (EnvironmentInformation.isGradleTest()) { //intellij
-            subtool += "_gradle";
-        }
-        if (EnvironmentInformation.isDebugging()) { //robolectric
-            subtool += "_debug";
-        }
-        if (EnvironmentInformation.isRoboTest()) { //robolectric
-            subtool += "_robo";
+        boolean disable = true;
+        try {
+
+            if (EnvironmentInformation.isSysUIRoboTest()) { //sysui
+                subtool += "_sysui";
+            } else if (EnvironmentInformation.isGradleTest()) { //intellij
+                subtool += "_gradle";
+            }
+            if (EnvironmentInformation.isDebugging()) { //robolectric
+                subtool += "_debug";
+            }
+            if (EnvironmentInformation.isRoboTest()) { //robolectric
+                subtool += "_robo";
+            }
+            if ((EnvironmentInformation.isGoogleDomain() ||
+                    EnvironmentInformation
+                            .getGitUserIfGoogleEmail(EnvironmentInformation.getGitEmail())
+                            .isPresent())) {
+                disable = false;
+            }
+        } catch (Throwable t) {
+            System.out.println("Error configuring clearcut listener:");
+            t.printStackTrace();
         }
         client = new Client(tool, subtool);
-        if (!(EnvironmentInformation.isGoogleDomain() ||
-                EnvironmentInformation
-                        .getGitUserIfGoogleEmail(EnvironmentInformation.getGitEmail())
-                        .isPresent())) {
+        if (disable) {
             client.disable();
         }
+
     }
 
     public ClearcutJunitListener() {
