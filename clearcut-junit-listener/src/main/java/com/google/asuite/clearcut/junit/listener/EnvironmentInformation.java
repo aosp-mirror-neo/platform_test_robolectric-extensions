@@ -37,6 +37,11 @@ public class EnvironmentInformation {
     private static String ROBOLECTRIC_CLASS = "org.robolectric.Robolectric";
     private static final String GOOGLE_EMAIL = "@google.com";
 
+    static {
+        System.out.println("ENVIRONMENT:");
+        System.getenv().forEach( (k,v) -> System.out.println(k + " : "+v));
+    }
+
     private static boolean hasClassInLoader(String className) {
         try {
             Thread.currentThread().getContextClassLoader().loadClass(
@@ -60,8 +65,12 @@ public class EnvironmentInformation {
     }
 
     public static boolean isDebugging() {
-        return java.lang.management.ManagementFactory.getRuntimeMXBean().
-                getInputArguments().toString().contains("-agentlib:jdwp");
+        try {
+            return java.lang.management.ManagementFactory.getRuntimeMXBean().
+                    getInputArguments().toString().contains("-agentlib:jdwp");
+        } catch (Throwable t) {
+            return false;
+        }
     }
 
 
