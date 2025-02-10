@@ -15,21 +15,16 @@
  */
 
 package com.google.asuite.clearcut.junit.listener;
-
 import com.google.auto.service.AutoService;
-
-import org.junit.runner.Description;
-import org.junit.runner.Result;
 import org.junit.runner.notification.RunListener;
 
 @AutoService(RunListener.class)
 public class ClearcutJunitListener extends RunListener {
 
     /**
-     * Static since the listener gets rebuild once per class.
+     * Static since the listener gets rebuilt once per class.
      */
     private static final Client client;
-    private long startTime = System.nanoTime();
 
     static {
         String tool = "junit";
@@ -62,29 +57,6 @@ public class ClearcutJunitListener extends RunListener {
         if (disable) {
             client.disable();
         }
-
-    }
-
-    public ClearcutJunitListener() {
-    }
-
-    @Override
-    public void testRunStarted(Description description) throws Exception {
         client.notifyTradefedStartEvent();
-    }
-
-    @Override
-    public void testRunFinished(Result result) throws Exception {
-        client.notifyTradefedFinishedEvent();
-    }
-
-    @Override
-    public void testStarted(Description description) throws Exception {
-        client.notifyTradefedInvocationStartEvent();
-    }
-
-    public void testFinished(Description description) throws Exception {
-        client.notifyTestRunFinished(startTime);
-        client.stop();
     }
 }
