@@ -33,29 +33,19 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
-import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-
 import javax.annotation.Nonnull;
 
 /** Client that allows reporting usage metrics to clearcut. */
@@ -68,29 +58,17 @@ public class Client {
     private static final int CLIENT_TYPE = 1;
     private static final int INTERNAL_LOG_SOURCE = 971;
     private static final int EXTERNAL_LOG_SOURCE = 934;
-
-    private static final long SCHEDULER_INITIAL_DELAY_MILLISECONDS = 1000;
-    private static final long SCHEDULER_PERDIOC_MILLISECONDS = 250;
-
-    private static final List<String> GOOGLE_HOSTNAMES = Arrays.asList(".google.com", "c.googlers.com");
-
     private File mCachedUuidFile = new File(System.getProperty("user.home"), ".clearcut_listener");
     private String mRunId;
     private long mSessionStartTime = 0L;
-
     private final int mLogSource;
     private final String mUrl;
     private final UserType mUserType;
     private final String mToolName;
     private final String mSubToolName;
     private final String mUser;
-
     private final boolean mIsGoogle;
 
-    // Consider synchronized list
-    private final List<LogRequest> mExternalEventQueue;
-    // The pool executor to actually post the metrics
-    private ScheduledThreadPoolExecutor mExecutor;
     // Whether the clearcut client should be a noop
     private boolean mDisabled = false;
 
@@ -123,7 +101,6 @@ public class Client {
         mUrl = Objects.requireNonNullElse(url, CLEARCUT_PROD_URL);
         mToolName = toolName;
         mRunId = UUID.randomUUID().toString();
-        mExternalEventQueue = new ArrayList<>();
         if (Strings.isNullOrEmpty(subToolName) && System.getenv(CLEARCUT_SUB_TOOL_NAME) != null) {
             mSubToolName = System.getenv(CLEARCUT_SUB_TOOL_NAME);
         } else {
@@ -136,32 +113,6 @@ public class Client {
 
         // Print the notice
         System.out.println(NoticeMessageUtil.getNoticeMessage(mUserType));
-
-        // Executor to actually send the events.
-        mExecutor =
-                new ScheduledThreadPoolExecutor(
-                        1,
-                        new ThreadFactory() {
-                            @Override
-                            public Thread newThread(@Nonnull Runnable r) {
-                                Thread t = Executors.defaultThreadFactory().newThread(r);
-                                t.setDaemon(true);
-                                t.setName("clearcut-client-thread");
-                                return t;
-                            }
-                        });
-        Runnable command =
-                new Runnable() {
-                    @Override
-                    public void run() {
-                        flushEvents();
-                    }
-                };
-        mExecutor.scheduleAtFixedRate(
-                command,
-                SCHEDULER_INITIAL_DELAY_MILLISECONDS,
-                SCHEDULER_PERDIOC_MILLISECONDS,
-                TimeUnit.MILLISECONDS);
     }
 
     protected void disable(){
@@ -179,117 +130,45 @@ public class Client {
         }
         mSessionStartTime = System.nanoTime();
         long eventTimeMs = System.currentTimeMillis();
-        CompletableFuture.supplyAsync(() -> createStartEvent(eventTimeMs));
+        CompletableFuture.supplyAsync(() -> createAndSendStartEvent(eventTimeMs));
     }
 
-    private boolean createStartEvent(long eventTimeMs) {
-        LogRequest.Builder request = createBaseLogRequest();
+    private boolean createAndSendStartEvent(long eventTimeMs) {
         LogEvent.Builder logEvent = LogEvent.newBuilder();
         logEvent.setEventTimeMs(eventTimeMs);
         logEvent.setSourceExtension(
                 ClearcutEventHelper.createStartEvent(
                         mUser, mRunId, mUserType, mToolName, mSubToolName));
+        LogRequest.Builder request = createBaseLogRequest();
         request.addLogEvent(logEvent);
-        queueEvent(request.build());
+        sendEvent(request.build());
         return true;
     }
 
-    /** Send the last event to notify that Tradefed is done. */
     public void notifyTradefedFinishedEvent() {
         if (mDisabled) {
             return;
         }
+        CompletableFuture.supplyAsync(() -> createAndSendFinishedEvent());
+    }
+
+    /** Send the last event to notify that Tradefed is done. */
+    public boolean createAndSendFinishedEvent() {
         Duration duration = java.time.Duration.ofNanos(System.nanoTime() - mSessionStartTime);
-        LogRequest.Builder request = createBaseLogRequest();
         LogEvent.Builder logEvent = LogEvent.newBuilder();
         logEvent.setEventTimeMs(System.currentTimeMillis());
         logEvent.setSourceExtension(
                 ClearcutEventHelper.createFinishedEvent(
                         mUser, mRunId, mUserType, mToolName, mSubToolName, duration));
-        request.addLogEvent(logEvent);
-        queueEvent(request.build());
-    }
-
-    /** Send the event to notify that a Tradefed invocation was started. */
-    public void notifyTradefedInvocationStartEvent() {
-        if (mDisabled) {
-            return;
-        }
         LogRequest.Builder request = createBaseLogRequest();
-        LogEvent.Builder logEvent = LogEvent.newBuilder();
-        logEvent.setEventTimeMs(System.currentTimeMillis());
-        logEvent.setSourceExtension(
-                ClearcutEventHelper.createRunStartEvent(
-                        mUser, mRunId, mUserType, mToolName, mSubToolName));
         request.addLogEvent(logEvent);
-        queueEvent(request.build());
-    }
-
-    /** Send the event to notify that a test run finished. */
-    public void notifyTestRunFinished(long startTimeNano) {
-        if (mDisabled) {
-            return;
-        }
-        Duration duration = java.time.Duration.ofNanos(System.nanoTime() - startTimeNano);
-        LogRequest.Builder request = createBaseLogRequest();
-        LogEvent.Builder logEvent = LogEvent.newBuilder();
-        logEvent.setEventTimeMs(System.currentTimeMillis());
-        logEvent.setSourceExtension(
-                ClearcutEventHelper.creatRunTestFinished(
-                        mUser, mRunId, mUserType, mToolName, mSubToolName, duration));
-        request.addLogEvent(logEvent);
-        queueEvent(request.build());
+        sendEvent(request.build());
+        return true;
     }
 
     /** Stop the periodic sending of clearcut events */
     public void stop() {
-        if (mExecutor != null) {
-            mExecutor.setRemoveOnCancelPolicy(true);
-            mExecutor.shutdown();
-            mExecutor = null;
-        }
-        // Send all remaining events
-        flushEvents();
-    }
-
-    /** Add an event to the queue of events that needs to be send. */
-    public void queueEvent(LogRequest event) {
-        synchronized (mExternalEventQueue) {
-            mExternalEventQueue.add(event);
-        }
-    }
-
-    /** Returns the current queue size. */
-    public final int getQueueSize() {
-        synchronized (mExternalEventQueue) {
-            return mExternalEventQueue.size();
-        }
-    }
-
-    /** Allows to override the default cached uuid file. */
-    public void setCachedUuidFile(File uuidFile) {
-        mCachedUuidFile = uuidFile;
-    }
-
-    /** Get a new or the cached uuid for the user. */
-    String getGroupingKey() {
-        String uuid = null;
-        if (mCachedUuidFile.exists()) {
-            try {
-                uuid = readFromFile(mCachedUuidFile);
-            } catch (IOException e) {
-                logError(e);
-            }
-        }
-        if (uuid == null || uuid.isEmpty()) {
-            uuid = UUID.randomUUID().toString();
-            try {
-                writeToFile(uuid, mCachedUuidFile);
-            } catch (IOException e) {
-                logError(e);
-            }
-        }
-        return uuid;
+        notifyTradefedFinishedEvent();
     }
 
     /** Returns True if clearcut is disabled, False otherwise. */
@@ -304,24 +183,12 @@ public class Client {
         return request;
     }
 
-    private void flushEvents() {
-        List<LogRequest> copy = new ArrayList<>();
-        synchronized (mExternalEventQueue) {
-            copy.addAll(mExternalEventQueue);
-            mExternalEventQueue.clear();
-        }
-        List<CompletableFuture<Boolean>> futures = new ArrayList<>();
-        while (!copy.isEmpty()) {
-            LogRequest event = copy.remove(0);
-            futures.add(CompletableFuture.supplyAsync(() -> sendToClearcut(event)));
-        }
-
-        for (CompletableFuture<Boolean> future : futures) {
-            try {
-                future.get();
-            } catch (InterruptedException | ExecutionException e) {
-                logError(e);
-            }
+    private void sendEvent(LogRequest request) {
+        CompletableFuture<Boolean> future = CompletableFuture.supplyAsync(() -> sendToClearcut(request));
+        try {
+            future.get();
+        } catch (InterruptedException | ExecutionException e) {
+            logError(e);
         }
     }
 
