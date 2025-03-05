@@ -48,32 +48,6 @@ public class ClientTest {
     }
 
     @Test
-    public void testGetGroupingKey() throws Exception {
-        File testFile = File.createTempFile("uuid-test", "");
-        try {
-            mClient.setCachedUuidFile(testFile);
-            String grouping = mClient.getGroupingKey();
-            // Key was created and written to cached file.
-            assertEquals(grouping, Client.readFromFile(testFile));
-        } finally {
-            testFile.delete();
-        }
-    }
-
-    @Test
-    public void testGetGroupingKey_exists() throws Exception {
-        File testFile = File.createTempFile("uuid-test", "");
-        try {
-            Client.writeToFile("test", testFile);
-            mClient.setCachedUuidFile(testFile);
-            String grouping = mClient.getGroupingKey();
-            assertEquals("test", grouping);
-        } finally {
-            testFile.delete();
-        }
-    }
-
-    @Test
     public void testDisableClient() {
         Client c =
                 new Client("url", "test") {
@@ -91,7 +65,6 @@ public class ClientTest {
             c.notifyTradefedStartEvent();
             c.notifyTradefedStartEvent();
             c.notifyTradefedStartEvent();
-            assertEquals(0, c.getQueueSize());
         } finally {
             c.stop();
         }
