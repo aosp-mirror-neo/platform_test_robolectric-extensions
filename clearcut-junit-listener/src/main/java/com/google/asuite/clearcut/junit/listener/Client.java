@@ -21,17 +21,14 @@ import com.android.asuite.clearcut.Clientanalytics.LogRequest;
 import com.android.asuite.clearcut.Clientanalytics.LogResponse;
 import com.android.asuite.clearcut.Common.UserType;
 
-import com.google.common.base.Strings;
-import com.google.protobuf.util.JsonFormat;
-
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -46,7 +43,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
-import javax.annotation.Nonnull;
+import java.util.zip.GZIPOutputStream;
 
 /** Client that allows reporting usage metrics to clearcut. */
 public class Client {
@@ -72,7 +69,7 @@ public class Client {
     // Whether the clearcut client should be a noop
     private boolean mDisabled = false;
 
-    public Client(@Nonnull String toolName, String subToolName) {
+    public Client(String toolName, String subToolName) {
         this(null, toolName, subToolName);
         Runtime.getRuntime().addShutdownHook(new Thread(Client.this::stop));
     }
@@ -80,7 +77,7 @@ public class Client {
     /**
      * Create Client with customized posting URL and forcing whether it's internal or external user.
      */
-    protected Client(String url, @Nonnull String toolName, String subToolName) {
+    protected Client(String url, String toolName, String subToolName) {
         mDisabled = isClearcutDisabled();
         Optional<String> email = EnvironmentInformation.getGitEmail();
         Optional<String> googleUser = EnvironmentInformation.getGitUserIfGoogleEmail(email);
@@ -101,7 +98,7 @@ public class Client {
         mUrl = Objects.requireNonNullElse(url, CLEARCUT_PROD_URL);
         mToolName = toolName;
         mRunId = UUID.randomUUID().toString();
-        if (Strings.isNullOrEmpty(subToolName) && System.getenv(CLEARCUT_SUB_TOOL_NAME) != null) {
+        if (subToolName != null && subToolName.isEmpty() && System.getenv(CLEARCUT_SUB_TOOL_NAME) != null) {
             mSubToolName = System.getenv(CLEARCUT_SUB_TOOL_NAME);
         } else {
             mSubToolName = subToolName;
@@ -197,15 +194,13 @@ public class Client {
         InputStream inputStream = null;
         InputStream errorStream = null;
         OutputStream outputStream = null;
-        OutputStreamWriter outputStreamWriter = null;
         try {
-            HttpURLConnection connection = createConnection(new URI(mUrl).toURL(), "POST", "text");
+            HttpURLConnection connection = createConnection(new URI(mUrl).toURL(), "POST", null);
+            connection.setRequestProperty("Content-Encoding", "gzip");
+            connection.setRequestProperty("Content-Type", "application/x-gzip");
             outputStream = connection.getOutputStream();
-            outputStreamWriter = new OutputStreamWriter(outputStream);
-
-            String jsonObject = JsonFormat.printer().preservingProtoFieldNames().print(event);
-            outputStreamWriter.write(jsonObject.toString());
-            outputStreamWriter.flush();
+            outputStream.write(gzipCompress(event.toByteArray()));
+            outputStream.flush();
 
             inputStream = connection.getInputStream();
             LogResponse response = LogResponse.parseFrom(inputStream);
@@ -236,7 +231,6 @@ public class Client {
         } finally {
             closeQuietly(outputStream);
             closeQuietly(inputStream);
-            closeQuietly(outputStreamWriter);
             closeQuietly(errorStream);
         }
         return true;
@@ -286,5 +280,13 @@ public class Client {
                 String.format("%s/%s", "TradeFederation_like_ClearcutJunitListener", "1.0"));
 
         return connection;
+    }
+
+    private static byte[] gzipCompress(byte[] data) throws IOException {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        try (GZIPOutputStream gzipOutputStream = new GZIPOutputStream(outputStream)) {
+            gzipOutputStream.write(data);
+        }
+        return outputStream.toByteArray();
     }
 }

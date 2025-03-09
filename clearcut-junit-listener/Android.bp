@@ -14,8 +14,8 @@ java_library_host {
     name: "ClearcutJunitListener",
     srcs: ["src/main/java/**/*.java"],
     static_libs: [
-        "asuite_proto_java",
-        "libprotobuf-java-util-full",
+        "asuite_proto_java_lite",
+        "libprotobuf-java-lite",
         "auto_service_annotations",
         "junit",
     ],
@@ -35,6 +35,7 @@ java_test_host {
     static_libs: [
         "ClearcutJunitListener",
         "truth-1.4.0-prebuilt",
+        "guava",
         "jsr305",
     ],
     //test_options: {
