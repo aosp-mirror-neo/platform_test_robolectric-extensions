@@ -57,12 +57,14 @@ java -cp $ANDROID_HOST_OUT_TESTCASES/$MODULE_NAME/$MODULE_NAME.jar:$ANDROID_HOST
     -Drobolectric.logging.enabled=true \
     -Drobolectric.offline=true \
     -Drobolectric.resourcesMode=BINARY \
+    -Drobolectric.graphicsMode=NATIVE \
     -Drobolectric.usePreinstrumentedJars=false \
-    -Drobolectric.enabledSdks=35 \
+    -Drobolectric.enabledSdks=36 \
     -Drobolectric.alwaysIncludeVariantMarkersInTestName=true \
     -Dandroid.robolectric.loadLibraryFromPath=true \
     -Djava.library.path=$ANDROID_HOST_OUT/lib64:/usr/java/packages/lib:/usr/lib64:/lib64:/lib:/usr/lib \
     -Drobolectric.sqliteMode=NATIVE \
+    --add-opens=java.base/java.io=ALL-UNNAMED \
     $DEBUGGER \
     org.junit.runner.JUnitCore \
     $CLASS_NAME
