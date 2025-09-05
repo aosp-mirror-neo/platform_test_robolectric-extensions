@@ -64,6 +64,7 @@ public class AndroidLocalSdkProvider extends DefaultSdkProvider {
     }
 
     protected void populateSdks(TreeMap<Integer, Sdk> knownSdks) {
+        super.populateSdks(knownSdks);
         try {
             Path location = findTargetJar();
             try {
@@ -72,10 +73,6 @@ public class AndroidLocalSdkProvider extends DefaultSdkProvider {
                 if (release != null) {
                     DefaultSdk currentSdk = new ProvidedJarSdk(release.getSdkInt(), "current",
                             release.getShortCode(), location);
-                    knownSdks.keySet()
-                            .stream()
-                            .filter(entry -> entry >= release.getSdkInt())
-                            .forEach(entry -> knownSdks.remove(entry));
                     knownSdks.put(release.getSdkInt(), currentSdk);
                 } else {
                     throw new RuntimeException(
@@ -91,7 +88,7 @@ public class AndroidLocalSdkProvider extends DefaultSdkProvider {
         } catch (IOException ioe) {
             throw new RuntimeException("Could not populate robolectric sdks as dynamic config failed", ioe);
         }
-        super.populateSdks(knownSdks);
+
     }
 
     /**
