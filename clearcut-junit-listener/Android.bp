@@ -34,9 +34,9 @@ java_test_host {
     java_resource_dirs: ["src/test/resources"],
     static_libs: [
         "ClearcutJunitListener",
-        "truth-1.4.0-prebuilt",
         "guava",
         "jsr305",
+        "truth",
     ],
     //test_options: {
     //    unit_test: false,
