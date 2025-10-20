@@ -6,8 +6,8 @@ import org.robolectric.internal.dependency.DependencyResolver;
 import org.robolectric.pluginapi.Sdk;
 import org.robolectric.pluginapi.SdkProvider;
 import org.robolectric.plugins.DefaultSdkProvider;
-import org.robolectric.versioning.AndroidVersionInitTools;
-import org.robolectric.versioning.AndroidVersions;
+import org.robolectric.versioning.VersionCalculator;
+import org.robolectric.versioning.VersionCalculator.SdkInfo;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -64,24 +64,14 @@ public class AndroidLocalSdkProvider extends DefaultSdkProvider {
     }
 
     protected void populateSdks(TreeMap<Integer, Sdk> knownSdks) {
+        super.populateSdks(knownSdks);
         try {
             Path location = findTargetJar();
             try {
                 JarFile jarFile = new JarFile(location.toFile());
-                final AndroidVersions.AndroidRelease release = AndroidVersionInitTools.computeReleaseVersion(jarFile);
-                if (release != null) {
-                    DefaultSdk currentSdk = new ProvidedJarSdk(release.getSdkInt(), "current",
-                            release.getShortCode(), location);
-                    knownSdks.keySet()
-                            .stream()
-                            .filter(entry -> entry >= release.getSdkInt())
-                            .forEach(entry -> knownSdks.remove(entry));
-                    knownSdks.put(release.getSdkInt(), currentSdk);
-                } else {
-                    throw new RuntimeException(
-                            "Could not read the version of the current android-all sdk"
-                                    + "this prevents robolectric from determining which shadows to apply.");
-                }
+                final int apiLevel = new VersionCalculator().calculateSdkInfo(jarFile).apiLevel;
+                DefaultSdk currentSdk = new ProvidedJarSdk(apiLevel, "current", location);
+                knownSdks.put(apiLevel, currentSdk);
             } catch (IOException ioe) {
                 throw new RuntimeException(
                         "Could not read the version of the current android-all sdk"
@@ -91,7 +81,7 @@ public class AndroidLocalSdkProvider extends DefaultSdkProvider {
         } catch (IOException ioe) {
             throw new RuntimeException("Could not populate robolectric sdks as dynamic config failed", ioe);
         }
-        super.populateSdks(knownSdks);
+
     }
 
     /**
@@ -101,8 +91,8 @@ public class AndroidLocalSdkProvider extends DefaultSdkProvider {
 
         private Path mJarPath;
 
-        ProvidedJarSdk(int apiLevel, String androidVersion, String codeName, Path jarPath) {
-            super(apiLevel, androidVersion, "", codeName, getJdkVersion());
+        ProvidedJarSdk(int apiLevel, String androidVersion, Path jarPath) {
+            super(apiLevel, androidVersion, "", "" /* leaving codeName as empty*/, getJdkVersion());
             this.mJarPath = jarPath;
         }
 
