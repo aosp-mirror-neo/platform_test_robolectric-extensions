@@ -20,7 +20,7 @@
 # Intended for faster iteration and more specific options than atest.
 #
 # In particular this script will:
-#  - only run tests on current SDK (35)
+#  - only run tests on current SDK (10000)
 #  - use sqlite native mode
 #  - load native libandroid_runtime built from HEAD
 #  - output stdout and stderr directly to terminal
@@ -59,7 +59,7 @@ java -cp $ANDROID_HOST_OUT_TESTCASES/$MODULE_NAME/$MODULE_NAME.jar:$ANDROID_HOST
     -Drobolectric.resourcesMode=BINARY \
     -Drobolectric.graphicsMode=NATIVE \
     -Drobolectric.usePreinstrumentedJars=false \
-    -Drobolectric.enabledSdks=36 \
+    -Drobolectric.enabledSdks=10000 \
     -Drobolectric.alwaysIncludeVariantMarkersInTestName=true \
     -Dandroid.robolectric.loadLibraryFromPath=true \
     -Djava.library.path=$ANDROID_HOST_OUT/lib64:/usr/java/packages/lib:/usr/lib64:/lib64:/lib:/usr/lib \
